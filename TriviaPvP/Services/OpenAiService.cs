@@ -11,32 +11,61 @@ namespace TriviaPvP.Services
 {
     public class OpenAiService
     {
+        //https://github.com/openai/openai-dotnet
+
         private string _apiKey;
         public OpenAiService(string apiKey)
         {
             _apiKey = apiKey;
         }
 
+
         public TriviaQuestion GenerateTriviaQuestion(string prompt)
         {
             TriviaQuestion question = new TriviaQuestion();
-            try
+
+            List<ChatMessage> messages = [new UserChatMessage(prompt)];
+
+            ChatClient client = new(model: "gpt-4o-mini", apiKey: _apiKey);
+
+            ChatCompletion completion = client.CompleteChat(messages, GetOptions());
+
+            string aiResponse = completion.Content[0].Text;
+
+            if (aiResponse != null)
             {
-                ChatClient client = new(model: "gpt-4o-mini", apiKey: _apiKey);
-
-                ChatCompletion completion = client.CompleteChat($"{prompt}");
-
-                string aiResponse = completion.Content[0].Text;
-
-                question = ParsingService.ParseOpenAiToTriviaQuestion(aiResponse);
-
-                return question;
+                question = JsonConvert.DeserializeObject<TriviaQuestion>(aiResponse);
             }
-            catch (Exception ex)
+
+            return question;
+        }
+
+        public ChatCompletionOptions GetOptions()
+        {
+            ChatCompletionOptions options = new()
             {
-                var i = ex;
-                return question;
+                ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
+                    jsonSchemaFormatName: "trivia",
+                    jsonSchema: BinaryData.FromBytes("""
+            {
+                "type": "object",
+                "properties": {
+                    "Question": { "type": "string" },
+                    "Options": { 
+                        "type": "array",
+                        "items": { "type": "string" }
+                    },
+                    "CorrectAnswer": { "type": "string" }
+                },
+                "required": ["Question", "Options", "CorrectAnswer"],
+                "additionalProperties": false
             }
+            """u8.ToArray()),
+                    jsonSchemaIsStrict: true
+                )
+            };
+
+            return options;
         }
     }
 }

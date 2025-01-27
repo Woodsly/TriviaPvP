@@ -38,7 +38,7 @@ namespace TriviaPvP.Services
             return answer;
         }
 
-        public static string ValidateInput()
+        public static string ValidateInput(string prompt)
         {
 
             bool valid = false;
@@ -46,6 +46,7 @@ namespace TriviaPvP.Services
 
             while (!valid)
             {
+                Console.Write(prompt);
                 answer = Console.ReadLine();
 
                 if (string.IsNullOrWhiteSpace(answer))

@@ -33,7 +33,9 @@ namespace TriviaPvP.Models
 
                 string answer = ValidationService.ValidateGameInput("Your answer: ");
 
-                if (answer.Equals(_question.CorrectAnswer, StringComparison.OrdinalIgnoreCase))
+                string first = _question.CorrectAnswer.Substring(0, 1);
+
+                if (answer.Equals(first, StringComparison.OrdinalIgnoreCase))
                 {
                     Console.WriteLine("Correct!");
 
