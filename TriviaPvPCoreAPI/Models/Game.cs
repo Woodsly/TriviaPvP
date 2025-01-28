@@ -26,7 +26,7 @@ namespace TriviaPvPCoreAPI.Models
             }
         }
 
-        public StartResponse StartGame()
+        public StartResponse StartRound()
         {
             return new StartResponse
             {
@@ -65,15 +65,7 @@ namespace TriviaPvPCoreAPI.Models
             // Check if all players have answered
             if (_players.All(p => p.Answered))
             {
-                // Increment the round after all players have answered
-                _roundNumber++;
-
-                foreach (var p in _players)
-                {
-                    p.Answered = false;
-                }
-
-                // Check if a player has won and the game should end
+                // Check if a player has won
                 Player winner = _players.FirstOrDefault(p => p.Score >= 3);
                 if (winner != null)
                 {
@@ -96,6 +88,24 @@ namespace TriviaPvPCoreAPI.Models
                         IsGameOver = true // Indicating the game is over
                     };
                 }
+
+                // Reset players' answered status for the next round
+                foreach (var p in _players)
+                {
+                    p.Answered = false;
+                }
+
+                // Increment the round number
+                _roundNumber++;
+
+                // Prompt for a new topic for the next round
+                return new RoundResult
+                {
+                    Message = $"Round {_roundNumber - 1} has ended. Enter a new topic to start round {_roundNumber}!",
+                    Scores = _players.Select(p => new PlayerScore { PlayerName = p.Name, Score = p.Score }).ToList(),
+                    IsGameOver = false, // Game continues
+                    RoundNumber = _roundNumber // Include round number in the response
+                };
             }
 
             string message = $"Correct answer was: {_question.CorrectAnswer}";

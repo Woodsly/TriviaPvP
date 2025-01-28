@@ -28,7 +28,7 @@ namespace TriviaPvPCoreAPI.Controllers
             game.AddPlayers(playerNames);
             _games[sessionId] = game;
 
-            StartResponse response = game.StartGame();
+            StartResponse response = game.StartRound();
             return Ok(new { SessionId = sessionId, response });
         }
 
