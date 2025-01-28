@@ -10,7 +10,7 @@
 
         public class StartResponse
         {
-            public string Question { get; set; }
+            public string Message { get; set; }
             public List<string> Options { get; set; }
         }
 
@@ -25,6 +25,7 @@
             public string Message { get; set; }
             public List<PlayerScore> Scores { get; set; }
             public bool IsGameOver { get; set; }
+            public int RoundNumber { get; set; }
         }
 
         public class PlayerScore

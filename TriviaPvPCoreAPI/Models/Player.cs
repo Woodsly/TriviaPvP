@@ -11,11 +11,13 @@ namespace TriviaPvP.Models
         //public int PlayerId { get; set; }
         public string Name { get; set; }
         public int Score { get; set; }
+        public bool Answered { get; set; }
 
         public Player(string name)
         {
             Name = name;
             Score = 0;
+            Answered = false;
         }
 
         internal void AddScore(int points)

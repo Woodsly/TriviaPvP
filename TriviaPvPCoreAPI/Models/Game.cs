@@ -30,7 +30,7 @@ namespace TriviaPvPCoreAPI.Models
         {
             return new StartResponse
             {
-                Question = $"Starting round {_roundNumber}. Enter a topic to begin!",
+                Message = $"Starting round {_roundNumber}. Enter a topic to begin!",
                 Options = new List<string>()
             };
         }
@@ -52,33 +52,50 @@ namespace TriviaPvPCoreAPI.Models
 
             string correctAnswer = _question.CorrectAnswer.Substring(0, 1);
 
-            if (selectedAnswer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase))
+            if (!player.Answered)
             {
-                player.AddScore(1);
+                if (selectedAnswer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase))
+                {
+                    player.AddScore(1);
+                }
             }
 
-            // Check if a player has won and the game should end
-            Player winner = _players.FirstOrDefault(p => p.Score >= 3);
-            if (winner != null)
+            player.Answered = true; // Mark player as having answered
+
+            // Check if all players have answered
+            if (_players.All(p => p.Answered))
             {
-                // Ensure there's no tie by checking if only one player has 3 or more points
-                List<Player> tiedPlayers = _players.Where(p => p.Score >= 3).ToList();
-                if (tiedPlayers.Count > 1)
+                // Increment the round after all players have answered
+                _roundNumber++;
+
+                foreach (var p in _players)
                 {
-                    return new RoundResult
-                    {
-                        Message = "It's a tie! No winner.",
-                        Scores = _players.Select(p => new PlayerScore { PlayerName = p.Name, Score = p.Score }).ToList(),
-                        IsGameOver = false // Game continues
-                    };
+                    p.Answered = false;
                 }
 
-                return new RoundResult
+                // Check if a player has won and the game should end
+                Player winner = _players.FirstOrDefault(p => p.Score >= 3);
+                if (winner != null)
                 {
-                    Message = $"The winner is {winner.Name} with {winner.Score} points!",
-                    Scores = _players.Select(p => new PlayerScore { PlayerName = p.Name, Score = p.Score }).ToList(),
-                    IsGameOver = true // Indicating the game is over
-                };
+                    // Ensure there's no tie by checking if only one player has 3 or more points
+                    List<Player> tiedPlayers = _players.Where(p => p.Score >= 3).ToList();
+                    if (tiedPlayers.Count > 1)
+                    {
+                        return new RoundResult
+                        {
+                            Message = "It's a tie! No winner.",
+                            Scores = _players.Select(p => new PlayerScore { PlayerName = p.Name, Score = p.Score }).ToList(),
+                            IsGameOver = false // Game continues
+                        };
+                    }
+
+                    return new RoundResult
+                    {
+                        Message = $"The winner is {winner.Name} with {winner.Score} points!",
+                        Scores = _players.Select(p => new PlayerScore { PlayerName = p.Name, Score = p.Score }).ToList(),
+                        IsGameOver = true // Indicating the game is over
+                    };
+                }
             }
 
             string message = $"Correct answer was: {_question.CorrectAnswer}";
@@ -86,7 +103,8 @@ namespace TriviaPvPCoreAPI.Models
             {
                 Message = message,
                 Scores = _players.Select(p => new PlayerScore { PlayerName = p.Name, Score = p.Score }).ToList(),
-                IsGameOver = false // Game continues
+                IsGameOver = false, // Game continues
+                RoundNumber = _roundNumber // Include round number in the response
             };
         }
     }
