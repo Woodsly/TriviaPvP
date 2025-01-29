@@ -23,7 +23,7 @@ namespace TriviaPvPCoreAPI.Services
         {
             var sessionId = Guid.NewGuid();
 
-            var gameSession = new GameSession
+            GameSession gameSession = new GameSession
             {
                 SessionId = sessionId,
                 CreatedAt = DateTime.UtcNow
@@ -34,11 +34,11 @@ namespace TriviaPvPCoreAPI.Services
             // Save the game session first to ensure SessionId is valid
             _context.SaveChanges();
 
-            var players = new List<DTO.Player>();
+            List<Player> players = new List<Player>();
 
-            foreach (var name in playerNames)
+            foreach (string name in playerNames)
             {
-                var player = new DTO.Player
+                Player player = new Player
                 {
                     PlayerName = name,
                     Score = 0,
@@ -52,7 +52,7 @@ namespace TriviaPvPCoreAPI.Services
             // Save players first so they get PlayerIds
             _context.SaveChanges();
 
-            foreach (var player in players)
+            foreach (Player player in players)
             {
                 _context.Set<Dictionary<string, object>>("PlayerGameSession").Add(new Dictionary<string, object>
                 {
@@ -64,7 +64,7 @@ namespace TriviaPvPCoreAPI.Services
             // Save the many-to-many relationship
             _context.SaveChanges();
 
-            var response = new StartResponse
+            StartResponse response = new StartResponse
             {
                 Message = $"Game session {sessionId} started. Enter a topic to begin!",
                 Options = new List<string>()
@@ -79,7 +79,7 @@ namespace TriviaPvPCoreAPI.Services
             if (!Guid.TryParse(sessionId, out var sessionGuid))
                 return new TriviaQuestionDto { Question = "Invalid session ID." };
 
-            var session = _context.GameSessions.Find(sessionGuid);
+            GameSession session = _context.GameSessions.Find(sessionGuid);
             if (session == null)
                 return new TriviaQuestionDto { Question = "Game session not found" };
 
@@ -87,9 +87,9 @@ namespace TriviaPvPCoreAPI.Services
                             $"Mark multiple choice A-D, and true false A or B.  " +
                             $"Always try to stick to the formatting example: **Question:** What is 2+2?\r\n\r\nA: 1  \r\nB: 2  \r\nC: 3  \r\nD: 4  \r\n\r\n**Correct Answer:** D: 4.";
 
-            var question = _openAiService.GenerateTriviaQuestion(prompt);
+            TriviaModel question = _openAiService.GenerateTriviaQuestion(prompt);
 
-            var questionEntity = new DTO.TriviaQuestion
+            TriviaQuestion questionEntity = new DTO.TriviaQuestion
             {
                 Question = question.QuestionContents,
                 CorrectAnswer = question.CorrectAnswer,
@@ -101,7 +101,7 @@ namespace TriviaPvPCoreAPI.Services
             // Save the options for this trivia question
             foreach (var optionText in question.Options) // Assuming 'Options' is a list of options returned by OpenAI
             {
-                var optionEntity = new DTO.TriviaQuestionOption
+                var optionEntity = new TriviaQuestionOption
                 {
                     OptionText = optionText,
                     Question = questionEntity // Establish the relationship with the trivia question
@@ -110,9 +110,9 @@ namespace TriviaPvPCoreAPI.Services
                 _context.TriviaQuestionOptions.Add(optionEntity);
             }
 
-            List<DTO.Player> playerList = _context.Players.Where(p => p.Sessions.Any(s => s.SessionId == sessionGuid)).ToList();
+            List<Player> playerList = _context.Players.Where(p => p.Sessions.Any(s => s.SessionId == sessionGuid)).ToList();
 
-            foreach (DTO.Player player in playerList)
+            foreach (Player player in playerList)
             {
                 player.Answered = false;
             }
@@ -129,7 +129,7 @@ namespace TriviaPvPCoreAPI.Services
                 return new TriviaQuestionDto { Question = "Error loading question with options." };
 
             // Map the entity to DTO
-            var triviaQuestionDto = new TriviaQuestionDto
+            TriviaQuestionDto triviaQuestionDto = new TriviaQuestionDto
             {
                 QuestionId = triviaQuestionWithOptions.QuestionId,
                 Question = triviaQuestionWithOptions.Question,
@@ -153,7 +153,7 @@ namespace TriviaPvPCoreAPI.Services
             if (!Guid.TryParse(sessionId, out var sessionGuid))
                 return new RoundResult { IsGameOver = false, Message = "Invalid session ID." };
 
-            var session = _context.GameSessions.Find(sessionGuid);
+            GameSession session = _context.GameSessions.Find(sessionGuid);
             if (session == null)
                 return new RoundResult { IsGameOver = false, Message = "Game session not found." };
 
@@ -176,29 +176,52 @@ namespace TriviaPvPCoreAPI.Services
             }
 
             player.Answered = true;
+
             _context.SaveChanges();
 
-            // Now filter players by the current session
-            var playersInSession = _context.Players.Where(p => p.Sessions.Any(s => s.SessionId == sessionGuid)).ToList();
+            var playersInSession = _context.Players
+    .Where(p => p.Sessions.Any(s => s.SessionId == sessionGuid))
+    .ToList();
 
             var allPlayersAnswered = playersInSession.All(p => (bool)p.Answered);
 
             if (allPlayersAnswered)
             {
-                var winner = playersInSession.FirstOrDefault(p => p.Score >= 3);
-                if (winner != null)
+                int maxScore = (int)playersInSession.Max(p => p.Score); // Get the highest score
+
+                if (maxScore >= 3)
                 {
-                    EndGame(sessionGuid);
-                    return new RoundResult
+                    var topScorers = playersInSession.Where(p => p.Score == maxScore).ToList();
+
+                    if (topScorers.Count == 1) // Only one player has the highest score
                     {
-                        Message = $"The winner is {winner.PlayerName} with {winner.Score} points!",
-                        Scores = playersInSession.Select(p => new PlayerScore
+                        var winner = topScorers.First();
+                        EndGame(sessionGuid);
+                        return new RoundResult
                         {
-                            PlayerName = p.PlayerName,
-                            Score = (int)p.Score
-                        }).ToList(),
-                        IsGameOver = true
-                    };
+                            Message = $"The winner is {winner.PlayerName} with {winner.Score} points!",
+                            Scores = playersInSession.Select(p => new PlayerScore
+                            {
+                                PlayerName = p.PlayerName,
+                                Score = (int)p.Score
+                            }).ToList(),
+                            IsGameOver = true
+                        };
+                    }
+                    else
+                    {
+                        // If there is a tie for the highest score, the game continues
+                        return new RoundResult
+                        {
+                            Message = "It's a tie! No winner.",
+                            Scores = playersInSession.Select(p => new PlayerScore
+                            {
+                                PlayerName = p.PlayerName,
+                                Score = (int)p.Score
+                            }).ToList(),
+                            IsGameOver = false // Game continues
+                        };
+                    }
                 }
             }
 
@@ -217,14 +240,18 @@ namespace TriviaPvPCoreAPI.Services
         public void EndGame(Guid guid)
         {
             List<Player> players = _context.Players.Where(p => p.Sessions.Any(s => s.SessionId == guid)).ToList();
+
             _context.TriviaQuestionOptions.RemoveRange(_context.TriviaQuestionOptions.Where(o => o.Question.SessionId == guid));
+
             _context.TriviaQuestions.RemoveRange(_context.TriviaQuestions.Where(q => q.SessionId == guid));
+
             _context.Set<Dictionary<string, object>>("PlayerGameSession").RemoveRange(_context.Set<Dictionary<string, object>>("PlayerGameSession").Where(pgs => (Guid)pgs["SessionId"] == guid));
+
             _context.GameSessions.Remove(_context.GameSessions.Find(guid));
+
             players.ForEach(p => p.Answered = false);
+
             _context.SaveChanges();
         }
-
     }
-
 }
