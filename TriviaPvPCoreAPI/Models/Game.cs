@@ -42,6 +42,16 @@ namespace TriviaPvPCoreAPI.Models
                          $"Always try to stick to the formatting example: **Question:** What is 2+2?\r\n\r\nA: 1  \r\nB: 2  \r\nC: 3  \r\nD: 4  \r\n\r\n**Correct Answer:** D: 4.";
 
             _question = _openAiService.GenerateTriviaQuestion(prompt);
+
+            // Reset players' answered status for the next round
+            foreach (var p in _players)
+            {
+                p.Answered = false;
+            }
+
+            // Increment the round number
+            _roundNumber++;
+
             return _question;
         }
 
@@ -88,15 +98,6 @@ namespace TriviaPvPCoreAPI.Models
                         IsGameOver = true // Indicating the game is over
                     };
                 }
-
-                // Reset players' answered status for the next round
-                foreach (var p in _players)
-                {
-                    p.Answered = false;
-                }
-
-                // Increment the round number
-                _roundNumber++;
 
                 // Prompt for a new topic for the next round
                 return new RoundResult

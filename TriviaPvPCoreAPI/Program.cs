@@ -1,5 +1,7 @@
 using TriviaPvP.Services;
+using TriviaPvPCoreAPI.Interfaces;
 using TriviaPvPCoreAPI.Models;
+using TriviaPvPCoreAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +13,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<Game>();
+
+builder.Services.AddScoped<IGameService, GameService>();
 
 builder.Services.AddSingleton<OpenAiService>(provider =>
 {

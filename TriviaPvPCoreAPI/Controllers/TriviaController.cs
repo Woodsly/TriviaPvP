@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TriviaPvP.Services;
+using TriviaPvPCoreAPI.Interfaces;
 using TriviaPvPCoreAPI.Models;
 using static TriviaPvPCoreAPI.Models.ApiResponses;
 
@@ -10,53 +11,35 @@ namespace TriviaPvPCoreAPI.Controllers
     [ApiController]
     public class TriviaController : ControllerBase
     {
-        private static readonly Dictionary<string, Game> _games = new Dictionary<string, Game>();
-        private readonly OpenAiService _openAiService;
-
-        public TriviaController(OpenAiService openAiService)
+        private readonly IGameService _gameService;
+        public TriviaController(IGameService gameService)
         {
-            _openAiService = openAiService;
+            _gameService = gameService;
         }
 
         [HttpPost("start")]
         public IActionResult StartGame([FromBody] List<string> playerNames)
         {
-            // Generate a unique session ID (could be playerNames or a GUID)
-            var sessionId = Guid.NewGuid().ToString();
-
-            Game game = new Game(_openAiService);
-            game.AddPlayers(playerNames);
-            _games[sessionId] = game;
-
-            StartResponse response = game.StartRound();
-            return Ok(new { SessionId = sessionId, response });
+            var (sessionId, startResponse) = _gameService.StartGame(playerNames);
+            return Ok(new { SessionId = sessionId, StartResponse = startResponse });
         }
 
         [HttpGet("question")]
         public IActionResult GetQuestion([FromQuery] string topic, [FromQuery] string sessionId)
         {
-            if (!_games.ContainsKey(sessionId))
-                return NotFound("Game not found.");
+            var question = _gameService.GetQuestion(topic, sessionId);
+            if (question.Question.Contains("Game session not found"))
+                return NotFound(question);
 
-            var game = _games[sessionId];
-            var question = game.GetTriviaQuestion(topic);
             return Ok(question);
         }
 
         [HttpPost("answer")]
         public IActionResult SubmitAnswer([FromBody] AnswerRequest answerRequest, [FromQuery] string sessionId)
         {
-            if (!_games.ContainsKey(sessionId))
-                return NotFound("Game not found.");
-
-            var game = _games[sessionId];
-            //var question = game.GetTriviaQuestion(""); // You can store the topic if needed
-            var result = game.SubmitAnswer(answerRequest.PlayerName, answerRequest.SelectedAnswer);
-
-            if (result.IsGameOver)
-            {
-                _games.Remove(sessionId);
-            }
+            var result = _gameService.SubmitAnswer(sessionId, answerRequest);
+            if (result.Message == "Game not found.")
+                return NotFound(result.Message);
 
             return Ok(result);
         }
