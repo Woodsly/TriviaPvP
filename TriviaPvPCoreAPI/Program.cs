@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using TriviaPvP.Services;
+using TriviaPvPCoreAPI.DTO;
 using TriviaPvPCoreAPI.Interfaces;
 using TriviaPvPCoreAPI.Models;
 using TriviaPvPCoreAPI.Services;
@@ -12,7 +14,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddScoped<Game>();
+builder.Services.AddDbContext<TriviaContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("TriviaDb"), sqlOptions =>
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null)));
 
 builder.Services.AddScoped<IGameService, GameService>();
 

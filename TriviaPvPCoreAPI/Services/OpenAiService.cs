@@ -20,9 +20,9 @@ namespace TriviaPvP.Services
         }
 
 
-        public TriviaQuestion GenerateTriviaQuestion(string prompt)
+        public TriviaModel GenerateTriviaQuestion(string prompt)
         {
-            TriviaQuestion question = new TriviaQuestion();
+            TriviaModel question = new TriviaModel();
 
             List<ChatMessage> messages = [new UserChatMessage(prompt)];
 
@@ -34,7 +34,7 @@ namespace TriviaPvP.Services
 
             if (aiResponse != null)
             {
-                question = JsonConvert.DeserializeObject<TriviaQuestion>(aiResponse);
+                question = JsonConvert.DeserializeObject<TriviaModel>(aiResponse);
             }
 
             return question;
@@ -50,14 +50,14 @@ namespace TriviaPvP.Services
             {
                 "type": "object",
                 "properties": {
-                    "Question": { "type": "string" },
+                    "QuestionContents": { "type": "string" },
                     "Options": { 
                         "type": "array",
                         "items": { "type": "string" }
                     },
                     "CorrectAnswer": { "type": "string" }
                 },
-                "required": ["Question", "Options", "CorrectAnswer"],
+                "required": ["QuestionContents", "Options", "CorrectAnswer"],
                 "additionalProperties": false
             }
             """u8.ToArray()),
